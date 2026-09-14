@@ -4,6 +4,7 @@ import {
   expressionSequenceDurationMs,
   type ExpressionSequence
 } from '../expression-sequence'
+import type { HairPlacement, ModularHairId } from './hair'
 import { rigFrameForSequence } from './sequence-renderer'
 import type { FaceRigState } from './types'
 
@@ -17,6 +18,8 @@ export type RigSequenceExportOptions = Readonly<{
   fps: 10 | 15 | 20 | 24 | 30
   quality: VideoExportQuality
   background: RigSequenceExportBackground
+  hairId?: ModularHairId
+  hairPlacement?: Partial<HairPlacement>
   onProgress?: (progress: number) => void
 }>
 
@@ -25,7 +28,7 @@ export function rigStateForExpressionSequence(
   sequence: ExpressionSequence,
   elapsedMs: number
 ): FaceRigState {
-  return rigFrameForSequence(sequence, elapsedMs).state
+  return rigFrameForSequence(sequence, elapsedMs, { hairId: 'none' }).state
 }
 
 function studioBackdrop(
@@ -65,7 +68,10 @@ async function drawRigFrame(
     studioBackdrop(context, options.size)
   }
 
-  const frame = rigFrameForSequence(options.sequence, elapsedMs)
+  const frame = rigFrameForSequence(options.sequence, elapsedMs, {
+    hairId: options.hairId ?? 'plush-bob',
+    hairPlacement: options.hairPlacement
+  })
   const { image, url } = await loadSvgImage(frame.svg)
   try {
     context.drawImage(image, 0, 0, options.size, options.size)
@@ -76,7 +82,8 @@ async function drawRigFrame(
 }
 
 /**
- * Encodes the exact modular SVG rig timeline rather than swapping raster sprites.
+ * Encodes the exact modular character timeline rather than swapping raster sprites.
+ * Hair and face use the same layered SVG composition as the live rig preview.
  * GIF may remain transparent; browser video codecs are exported over the studio backdrop.
  */
 export async function createRigSequenceExport(
