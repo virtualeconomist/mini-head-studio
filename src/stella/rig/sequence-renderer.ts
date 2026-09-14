@@ -9,6 +9,7 @@ import type { FaceRigState } from './types'
 export type RigSequenceRenderOptions = Readonly<{
   hairId?: ModularHairId
   hairPlacement?: Partial<HairPlacement>
+  hairSource?: string
 }>
 
 export type RigSequenceFrame = SequenceRendererFrame & Readonly<{
@@ -43,6 +44,7 @@ export function rigFrameForSequence(
     svg: renderStellaCharacterSvg(state, {
       hairId,
       hairPlacement: options.hairPlacement,
+      hairSource: options.hairSource,
       label: `Rig sequence ${sample.from} to ${sample.to}`
     })
   }
