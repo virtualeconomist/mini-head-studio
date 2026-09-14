@@ -5,6 +5,11 @@ export {
   createRigSequenceExport,
   rigStateForExpressionSequence
 } from './sequence-export'
+export {
+  rigFrameForSequence,
+  rigSequenceRenderer
+} from './sequence-renderer'
+export type { RigSequenceFrame } from './sequence-renderer'
 export { STELLA_RIG_MANIFEST } from './stella-manifest'
 export type {
   RigSequenceExportBackground,
