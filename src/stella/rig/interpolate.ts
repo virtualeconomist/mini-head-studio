@@ -12,6 +12,8 @@ export function clamp01(value: number) {
 
 export function lerp(from: number, to: number, t: number) {
   const progress = clamp01(t)
+  if (progress === 0) return from
+  if (progress === 1) return to
   return from + (to - from) * progress
 }
 
