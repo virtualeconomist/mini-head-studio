@@ -1,7 +1,16 @@
 export { STELLA_EXPRESSION_PRESETS, getStellaExpressionPreset } from './expression-presets'
 export { clamp01, interpolateFaceRigState, lerp } from './interpolate'
 export { renderFaceRigSvg } from './render-svg'
+export {
+  createRigSequenceExport,
+  rigStateForExpressionSequence
+} from './sequence-export'
 export { STELLA_RIG_MANIFEST } from './stella-manifest'
+export type {
+  RigSequenceExportBackground,
+  RigSequenceExportFormat,
+  RigSequenceExportOptions
+} from './sequence-export'
 export type {
   BlushRigState,
   BrowRigState,
