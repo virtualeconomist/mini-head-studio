@@ -1,5 +1,6 @@
 import { renderFaceRigSvg } from './render-svg'
 import {
+  PLUSH_BOB_RASTER_SOURCE,
   renderStellaHairDefs,
   renderStellaHairLayer,
   type HairPlacement,
@@ -11,6 +12,7 @@ import type { FaceRigState } from './types'
 export type StellaCharacterRenderOptions = Readonly<{
   hairId?: ModularHairId
   hairPlacement?: Partial<HairPlacement>
+  hairSource?: string
   label?: string
 }>
 
@@ -23,15 +25,15 @@ function innerSvgMarkup(svg: string) {
 }
 
 /**
- * First Stella character shell compositor.
+ * Stella character shell compositor.
  *
  * Layer order is intentionally explicit:
- *   1. independent back hair
+ *   1. source-faithful raster back hair
  *   2. reusable parametric face/head rig
- *   3. independent front fringe/hair
+ *   3. source-faithful raster fringe
  *
- * The hair renderer never receives expression state. This is the architectural
- * boundary that removes the old hair × expression sprite multiplication.
+ * The hair renderer never receives expression state. The same extracted source
+ * artwork surrounds every rig state without hair × expression sprite variants.
  */
 export function renderStellaCharacterSvg(
   state: FaceRigState,
@@ -39,6 +41,7 @@ export function renderStellaCharacterSvg(
 ) {
   const hairId = options.hairId ?? 'plush-bob'
   const hairPlacement = options.hairPlacement ?? {}
+  const hairSource = options.hairSource ?? PLUSH_BOB_RASTER_SOURCE
   const label = options.label ?? `${STELLA_RIG_MANIFEST.label} modular character`
   const faceSvg = renderFaceRigSvg(
     STELLA_RIG_MANIFEST,
@@ -50,11 +53,11 @@ export function renderStellaCharacterSvg(
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${label}" data-character-shell="stella" data-hair="${hairId}">
-  ${hairId === 'none' ? '' : renderStellaHairDefs()}
-  ${renderStellaHairLayer(hairId, 'back', hairPlacement)}
+  ${hairId === 'none' ? '' : renderStellaHairDefs(hairSource)}
+  ${renderStellaHairLayer(hairId, 'back', hairPlacement, hairSource)}
   <g data-character-layer="face-rig">
     ${faceBody}
   </g>
-  ${renderStellaHairLayer(hairId, 'front', hairPlacement)}
+  ${renderStellaHairLayer(hairId, 'front', hairPlacement, hairSource)}
 </svg>`
 }
