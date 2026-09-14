@@ -108,10 +108,46 @@ function renderMouth(state: FaceRigState, anchor: { x: number; y: number }) {
       fill="#f29aa0" stroke="none"/>`
 }
 
-function renderBlush(anchor: { x: number; y: number }, opacity: number, scale: number) {
-  if (opacity <= 0.01) return ''
-  return `<ellipse cx="${anchor.x}" cy="${anchor.y}" rx="${24 * scale}" ry="${13 * scale}"
-    fill="#f39ba8" opacity="${clamp(opacity, 0, 1).toFixed(3)}"/>`
+function renderBlush(
+  anchor: { x: number; y: number },
+  opacity: number,
+  scale: number,
+  side: 'left' | 'right'
+) {
+  const alpha = clamp(opacity, 0, 1)
+  if (alpha <= 0.01) return ''
+  const direction = side === 'left' ? -1 : 1
+  const rotation = direction * 4
+  const rx = 33 * scale
+  const ry = 15.5 * scale
+
+  return `<g transform="rotate(${rotation} ${anchor.x} ${anchor.y})" opacity="${alpha.toFixed(3)}">
+    <ellipse cx="${anchor.x + direction * 2}" cy="${anchor.y + 1}" rx="${rx}" ry="${ry}"
+      fill="url(#blush-glow)" filter="url(#blush-soft)"/>
+    <ellipse cx="${anchor.x - direction * 4}" cy="${anchor.y - 1}" rx="${rx * 0.62}" ry="${ry * 0.62}"
+      fill="url(#blush-core)" opacity=".5"/>
+  </g>`
+}
+
+function renderCheekDots(
+  anchor: { x: number; y: number },
+  opacity: number,
+  scale: number,
+  side: 'left' | 'right'
+) {
+  const alpha = mix(0.52, 0.92, clamp(opacity, 0, 1))
+  const direction = side === 'left' ? -1 : 1
+  const base = 3.3 * mix(0.92, 1.08, clamp(scale - 0.8, 0, 0.4) / 0.4)
+  const points = [
+    { x: -17, y: -2, r: 0.78 },
+    { x: -7, y: 7, r: 1 },
+    { x: 5, y: -5, r: 0.72 },
+    { x: 15, y: 4, r: 0.58 }
+  ]
+
+  return `<g fill="#d93333" opacity="${alpha.toFixed(3)}">
+    ${points.map((point) => `<circle cx="${anchor.x + direction * point.x}" cy="${anchor.y + point.y}" r="${(base * point.r).toFixed(2)}"/>`).join('')}
+  </g>`
 }
 
 function renderEffects(state: FaceRigState) {
@@ -158,23 +194,34 @@ export function renderFaceRigSvg(
     <radialGradient id="eye-right" cx="38%" cy="32%" r="70%">
       <stop offset="0" stop-color="#2c2927"/><stop offset="1" stop-color="#121111"/>
     </radialGradient>
+    <radialGradient id="blush-glow" cx="50%" cy="48%" r="54%">
+      <stop offset="0" stop-color="#f26f82" stop-opacity=".58"/>
+      <stop offset="45%" stop-color="#f58d9c" stop-opacity=".32"/>
+      <stop offset="78%" stop-color="#f6a2ad" stop-opacity=".12"/>
+      <stop offset="100%" stop-color="#f6a2ad" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blush-core" cx="50%" cy="50%" r="58%">
+      <stop offset="0" stop-color="#ed7181" stop-opacity=".42"/>
+      <stop offset="100%" stop-color="#f3a1aa" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blush-soft" x="-30%" y="-60%" width="160%" height="220%">
+      <feGaussianBlur stdDeviation="2.8"/>
+    </filter>
     <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="150%">
       <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#6f4936" flood-opacity=".18"/>
     </filter>
   </defs>
   <path d="M96 224 C96 130 163 82 256 82 C349 82 416 130 416 224 L416 302 C416 389 350 432 256 432 C162 432 96 389 96 302 Z"
     fill="url(#skin)" filter="url(#soft-shadow)"/>
-  ${renderBlush(anchors.leftBlush, state.blush.opacity, state.blush.scale)}
-  ${renderBlush(anchors.rightBlush, state.blush.opacity, state.blush.scale)}
+  ${renderBlush(anchors.leftBlush, state.blush.opacity, state.blush.scale, 'left')}
+  ${renderBlush(anchors.rightBlush, state.blush.opacity, state.blush.scale, 'right')}
   ${renderBrow(anchors.leftBrow, state.leftBrow)}
   ${renderBrow(anchors.rightBrow, state.rightBrow)}
   ${renderEye(state.leftEye, anchors.leftEye, 'eye-left')}
   ${renderEye(state.rightEye, anchors.rightEye, 'eye-right')}
   ${renderMouth(state, anchors.mouth)}
-  <g fill="#d93333" opacity=".86">
-    <circle cx="150" cy="305" r="4.5"/><circle cx="169" cy="316" r="3.5"/><circle cx="184" cy="299" r="3"/>
-    <circle cx="362" cy="305" r="4.5"/><circle cx="343" cy="316" r="3.5"/><circle cx="328" cy="299" r="3"/>
-  </g>
+  ${renderCheekDots(anchors.leftBlush, state.blush.opacity, state.blush.scale, 'left')}
+  ${renderCheekDots(anchors.rightBlush, state.blush.opacity, state.blush.scale, 'right')}
   ${renderEffects(state)}
 </svg>`
 }
