@@ -13,7 +13,7 @@ if (new URLSearchParams(window.location.search).get('lab') === 'rig') {
   mount.id = 'rig-lab-root'
   document.body.append(mount)
 
-  void import('./components/RigComparisonLab.vue').then(({ default: RigComparisonLab }) => {
-    createApp(RigComparisonLab).mount(mount)
+  void import('./components/RigLabPage.vue').then(({ default: RigLabPage }) => {
+    createApp(RigLabPage).mount(mount)
   })
 }
