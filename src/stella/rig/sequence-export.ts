@@ -2,13 +2,9 @@ import { gifIndexe, indexe, nouvellePalette, recense } from '@/ui/anime'
 import type { VideoExportFormat, VideoExportQuality } from '@/ui/video'
 import {
   expressionSequenceDurationMs,
-  sampleExpressionSequence,
   type ExpressionSequence
 } from '../expression-sequence'
-import { STELLA_EXPRESSION_PRESETS } from './expression-presets'
-import { interpolateFaceRigState } from './interpolate'
-import { renderFaceRigSvg } from './render-svg'
-import { STELLA_RIG_MANIFEST } from './stella-manifest'
+import { rigFrameForSequence } from './sequence-renderer'
 import type { FaceRigState } from './types'
 
 export type RigSequenceExportFormat = 'gif' | VideoExportFormat
@@ -24,18 +20,12 @@ export type RigSequenceExportOptions = Readonly<{
   onProgress?: (progress: number) => void
 }>
 
+/** Backwards-compatible pure helper now delegated to the shared rig renderer. */
 export function rigStateForExpressionSequence(
   sequence: ExpressionSequence,
   elapsedMs: number
 ): FaceRigState {
-  const sample = sampleExpressionSequence(sequence, elapsedMs)
-  const from = STELLA_EXPRESSION_PRESETS[sample.from]
-  if (!sample.inTransition || sample.from === sample.to) return from
-  return interpolateFaceRigState(
-    from,
-    STELLA_EXPRESSION_PRESETS[sample.to],
-    sample.easedProgress
-  )
+  return rigFrameForSequence(sequence, elapsedMs).state
 }
 
 function studioBackdrop(
@@ -75,13 +65,8 @@ async function drawRigFrame(
     studioBackdrop(context, options.size)
   }
 
-  const state = rigStateForExpressionSequence(options.sequence, elapsedMs)
-  const svg = renderFaceRigSvg(
-    STELLA_RIG_MANIFEST,
-    state,
-    `Exported modular rig at ${Math.round(elapsedMs)}ms`
-  )
-  const { image, url } = await loadSvgImage(svg)
+  const frame = rigFrameForSequence(options.sequence, elapsedMs)
+  const { image, url } = await loadSvgImage(frame.svg)
   try {
     context.drawImage(image, 0, 0, options.size, options.size)
   } finally {
