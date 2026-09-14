@@ -222,9 +222,9 @@ export function installExpressionLoop() {
     const transitionMs = Math.max(120, Math.min(320, Math.round(state.intervalMs * 0.32)))
     frame.style.setProperty('--expression-loop-transition', `${transitionMs}ms`)
 
-    const current = layers[activeLayer]
+    const current = layers[activeLayer]!
     const nextIndex = activeLayer === 0 ? 1 : 0
-    const next = layers[nextIndex]
+    const next = layers[nextIndex]!
     next.src = spritePath(currentHairRow(), expression)
     next.className = `expression-loop-layer expression-loop-layer--${state.transition}`
 
