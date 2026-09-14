@@ -12,7 +12,6 @@ import { createSpriteSequenceRenderer } from '@/stella/sprite/sequence-renderer'
 import type { SpriteAssetPack } from '@/stella/sprite/manifest'
 
 const STORAGE_KEY = 'mini-head-sprite-sequencer'
-const defaultOrder: ExpressionId[] = ['happy', 'wink', 'cheeky', 'love']
 const defaultHolds: Record<ExpressionId, number> = {
   happy: 420,
   wink: 300,
