@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   expressionSequenceDurationMs,
   sampleExpressionSequence,
+  sequenceFromStoredExpressionLoop,
   type ExpressionSequence
 } from './expression-sequence'
 
@@ -47,5 +48,23 @@ describe('expression sequence timeline', () => {
 
   it('wraps elapsed time deterministically', () => {
     expect(sampleExpressionSequence(sequence, 1600)).toEqual(sampleExpressionSequence(sequence, 100))
+  })
+
+  it('preserves every selected face and full duration from the existing Expression Loop', () => {
+    const converted = sequenceFromStoredExpressionLoop({
+      enabled: true,
+      selected: ['happy', 'wink', 'cheeky', 'sleepy'],
+      intervalMs: 700,
+      transition: 'crossfade'
+    })
+
+    expect(converted).not.toBeNull()
+    expect(converted!.steps.map((step) => step.expression)).toEqual([
+      'happy',
+      'wink',
+      'cheeky',
+      'sleepy'
+    ])
+    expect(expressionSequenceDurationMs(converted!)).toBe(2800)
   })
 })
