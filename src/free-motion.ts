@@ -103,10 +103,24 @@ export function installFreeMotionToggle() {
 
   let snapshot: MotionSnapshot | null = null
   let switching = false
+  const wiredFrames = new WeakSet<HTMLElement>()
+
+  const suppressPointerLeave = (event: PointerEvent) => {
+    if (isFollowing()) event.stopImmediatePropagation()
+  }
+
+  const wireFrame = (frame: HTMLElement) => {
+    if (wiredFrames.has(frame)) return
+    wiredFrames.add(frame)
+    // Vue normally recenters Stella on pointerleave. While Free Motion is on,
+    // keep the last direction so the viewport-level tracker can take over.
+    frame.addEventListener('pointerleave', suppressPointerLeave, true)
+  }
 
   const ensureButton = () => {
     const frame = document.querySelector<HTMLElement>('.preview-frame')
     if (!frame) return null
+    wireFrame(frame)
     let button = frame.querySelector<HTMLButtonElement>('.preview-frame__follow-toggle')
     if (!button) {
       button = document.createElement('button')
@@ -177,6 +191,39 @@ export function installFreeMotionToggle() {
     if (replay) replay.disabled = active
     if (speed) speed.disabled = active
   }
+
+  const trackAcrossViewport = (event: PointerEvent) => {
+    if (!isFollowing() || event.pointerType === 'touch') return
+    const frame = document.querySelector<HTMLElement>('.preview-frame')
+    if (!frame) return
+    wireFrame(frame)
+
+    const rect = frame.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    const horizontalReach = event.clientX >= centerX
+      ? Math.max(1, window.innerWidth - centerX)
+      : Math.max(1, centerX)
+    const verticalReach = event.clientY >= centerY
+      ? Math.max(1, window.innerHeight - centerY)
+      : Math.max(1, centerY)
+    const normalizedX = Math.max(-1, Math.min(1, (event.clientX - centerX) / horizontalReach))
+    const normalizedY = Math.max(-1, Math.min(1, (event.clientY - centerY) / verticalReach))
+
+    // App.vue already knows how to turn a pointer coordinate into Stella's
+    // translate/tilt variables. Feed it a synthetic coordinate that represents
+    // the pointer's position across the whole viewport instead of just the card.
+    const mappedX = centerX + normalizedX * rect.width / 2
+    const mappedY = centerY + normalizedY * rect.height / 2
+    frame.dispatchEvent(new PointerEvent('pointermove', {
+      clientX: mappedX,
+      clientY: mappedY,
+      pointerType: event.pointerType || 'mouse',
+      bubbles: false
+    }))
+  }
+
+  window.addEventListener('pointermove', trackAcrossViewport, { passive: true })
 
   sync()
   const host = document.querySelector('#app')
