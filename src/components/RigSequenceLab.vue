@@ -8,10 +8,13 @@ import {
   type SequenceEasingId
 } from '@/stella/expression-sequence'
 import {
+  createRigSequenceExport,
   STELLA_EXPRESSION_PRESETS,
   STELLA_RIG_MANIFEST,
   interpolateFaceRigState,
-  renderFaceRigSvg
+  renderFaceRigSvg,
+  type RigSequenceExportBackground,
+  type RigSequenceExportFormat
 } from '@/stella/rig'
 
 const STORAGE_KEY = 'mini-head-rig-sequencer'
@@ -58,6 +61,13 @@ const easeStrength = ref(typeof saved.easeStrength === 'number' ? Math.max(1, Ma
 const seamless = ref(saved.seamless !== false)
 const playing = ref(false)
 const playheadMs = ref(0)
+const exportFormat = ref<RigSequenceExportFormat>('gif')
+const exportSize = ref<320 | 512 | 1024>(512)
+const exportFps = ref<10 | 15 | 20 | 24 | 30>(20)
+const exportBackground = ref<RigSequenceExportBackground>('studio')
+const exporting = ref(false)
+const exportProgress = ref(0)
+const exportStatus = ref('')
 let frame = 0
 let lastFrameAt = 0
 let dragIndex = -1
@@ -168,6 +178,56 @@ function labelFor(expression: ExpressionId) {
   return EXPRESSIONS.find((item) => item.id === expression)?.label ?? expression
 }
 
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.append(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+async function exportRigLoop() {
+  if (exporting.value) return
+  const resumePlayback = playing.value
+  if (resumePlayback) {
+    playing.value = false
+    cancelAnimationFrame(frame)
+  }
+
+  exporting.value = true
+  exportProgress.value = 0
+  exportStatus.value = 'Rendering modular rig frames…'
+
+  try {
+    const blob = await createRigSequenceExport({
+      sequence: sequence.value,
+      format: exportFormat.value,
+      size: exportSize.value,
+      fps: exportFps.value,
+      quality: 'high',
+      background: exportFormat.value === 'gif' ? exportBackground.value : 'studio',
+      onProgress: (progress) => {
+        exportProgress.value = progress
+      }
+    })
+    const extension = exportFormat.value
+    downloadBlob(blob, `stella-modular-rig-loop.${extension}`)
+    exportStatus.value = `${extension.toUpperCase()} exported from the live modular rig timeline.`
+  } catch (error) {
+    exportStatus.value = error instanceof Error ? error.message : 'Rig export failed'
+  } finally {
+    exporting.value = false
+    if (resumePlayback) {
+      playing.value = true
+      lastFrameAt = 0
+      frame = requestAnimationFrame(tick)
+    }
+  }
+}
+
 onBeforeUnmount(() => cancelAnimationFrame(frame))
 </script>
 
@@ -214,6 +274,58 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
             aria-label="Rig sequence playhead"
           />
           <span>{{ (playheadMs / 1000).toFixed(2) }}s</span>
+        </div>
+
+        <div class="sequence-export">
+          <div class="sequence-export__head">
+            <div>
+              <span>DIRECT RIG EXPORT</span>
+              <strong>Export this exact parametric loop</strong>
+            </div>
+            <span>FACE / HEAD ONLY</span>
+          </div>
+          <div class="sequence-export__controls">
+            <label>
+              <span>Format</span>
+              <select v-model="exportFormat">
+                <option value="gif">GIF</option>
+                <option value="mp4">MP4</option>
+                <option value="webm">WebM</option>
+              </select>
+            </label>
+            <label>
+              <span>Size</span>
+              <select v-model.number="exportSize">
+                <option :value="320">320</option>
+                <option :value="512">512</option>
+                <option :value="1024">1024</option>
+              </select>
+            </label>
+            <label>
+              <span>FPS</span>
+              <select v-model.number="exportFps">
+                <option :value="10">10</option>
+                <option :value="15">15</option>
+                <option :value="20">20</option>
+                <option :value="24">24</option>
+                <option :value="30">30</option>
+              </select>
+            </label>
+            <label>
+              <span>Background</span>
+              <select v-model="exportBackground" :disabled="exportFormat !== 'gif'">
+                <option value="studio">Studio</option>
+                <option value="transparent">Transparent</option>
+              </select>
+            </label>
+          </div>
+          <button type="button" class="sequence-export__button" :disabled="exporting" @click="exportRigLoop">
+            {{ exporting ? `Rendering ${Math.round(exportProgress * 100)}%` : `Export modular ${exportFormat.toUpperCase()}` }}
+          </button>
+          <div v-if="exporting" class="sequence-export__progress" aria-hidden="true">
+            <span :style="{ width: `${Math.round(exportProgress * 100)}%` }" />
+          </div>
+          <p>{{ exportStatus || 'Uses the same rig state, easing, hold timing and SVG renderer as the preview. Hair becomes compositable in the next architecture milestone.' }}</p>
         </div>
       </div>
 
@@ -308,6 +420,21 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 .sequence-transport button { min-height:34px; padding:0 10px; border:1px solid rgb(255 255 255 / .14); border-radius:10px; background:#2a2623; color:#fff; cursor:pointer; font:850 9px/1 system-ui; }
 .sequence-transport input { width:100%; accent-color:#ff4c4c; }
 .sequence-transport span { color:rgb(255 255 255 / .55); font:750 9px/1 system-ui; }
+.sequence-export { margin-top:14px; padding:13px; border:1px solid rgb(255 255 255 / .1); border-radius:16px; background:#292522; }
+.sequence-export__head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.sequence-export__head div { display:grid; gap:3px; }
+.sequence-export__head div span { color:#ff6565; font-size:8px; font-weight:950; letter-spacing:.12em; }
+.sequence-export__head div strong { font-size:11px; }
+.sequence-export__head > span { padding:5px 7px; border-radius:999px; background:rgb(255 255 255 / .07); color:rgb(255 255 255 / .46); font:850 7px/1 system-ui; letter-spacing:.08em; }
+.sequence-export__controls { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
+.sequence-export__controls label { display:grid; gap:4px; color:rgb(255 255 255 / .44); font-size:8px; font-weight:850; }
+.sequence-export__controls select { min-width:0; height:31px; padding:0 7px; border:1px solid rgb(255 255 255 / .11); border-radius:8px; background:#211e1c; color:#fff; font-size:9px; }
+.sequence-export__controls select:disabled { opacity:.4; }
+.sequence-export__button { width:100%; min-height:36px; margin-top:9px; border:0; border-radius:10px; background:#fff; color:#171514; cursor:pointer; font:950 9px/1 system-ui; }
+.sequence-export__button:disabled { opacity:.62; cursor:wait; }
+.sequence-export__progress { height:4px; margin-top:8px; overflow:hidden; border-radius:999px; background:rgb(255 255 255 / .08); }
+.sequence-export__progress span { display:block; height:100%; border-radius:inherit; background:#ff5656; transition:width 100ms linear; }
+.sequence-export p { margin:8px 1px 0; color:rgb(255 255 255 / .4); font-size:8.5px; line-height:1.45; }
 .sequence-editor { padding:16px; }
 .sequence-editor__title { display:flex; justify-content:space-between; gap:12px; margin-bottom:10px; }
 .sequence-editor__title strong { font-size:13px; }
@@ -337,6 +464,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
   .sequence-lab__duration { display:inline-block; margin-top:12px; }
   .sequence-transport { grid-template-columns:1fr 1fr; }
   .sequence-transport input { grid-column:1 / -1; }
+  .sequence-export__controls { grid-template-columns:1fr 1fr; }
   .sequence-settings { grid-template-columns:1fr; }
   .sequence-seamless { grid-column:auto; }
 }
