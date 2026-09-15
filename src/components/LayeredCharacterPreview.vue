@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
+  STELLA_GENERATED_ASSET_SHEET,
   accessoryDefinition,
-  generatedAssetLayerStyle,
+  generatedAssetImageStyle,
+  generatedAssetTransformStyle,
   modularHairDefinition,
   type AccessoryId,
   type AccessoryPlacement,
+  type GeneratedAssetId,
   type HairPlacement,
   type ModularHairId
 } from '@/stella/rig'
@@ -23,22 +26,23 @@ const hairDefinition = computed(() => modularHairDefinition(props.hairId))
 const accessory = computed(() => accessoryDefinition(props.accessoryId))
 const legacyHair = computed(() => hairDefinition.value?.sourceKind === 'raster-shell')
 
-const baseStyle = computed(() => generatedAssetLayerStyle('base-head'))
-const hairStyle = computed(() => {
+const baseImageStyle = generatedAssetImageStyle('base-head')
+const hairAssetId = computed<GeneratedAssetId | null>(() => {
   const hair = hairDefinition.value
   if (!hair || hair.sourceKind !== 'generated-overlay' || !hair.generatedAsset) return null
-  return generatedAssetLayerStyle(hair.generatedAsset, props.hairPlacement)
+  return hair.generatedAsset
 })
-const accessoryStyle = computed(() => {
-  if (!accessory.value) return null
-  return generatedAssetLayerStyle(accessory.value.generatedAsset, props.accessoryPlacement)
-})
+const hairImageStyle = computed(() => hairAssetId.value ? generatedAssetImageStyle(hairAssetId.value) : null)
+const hairTransformStyle = computed(() => generatedAssetTransformStyle(props.hairPlacement))
+const accessoryAssetId = computed<GeneratedAssetId | null>(() => accessory.value?.generatedAsset ?? null)
+const accessoryImageStyle = computed(() => accessoryAssetId.value ? generatedAssetImageStyle(accessoryAssetId.value) : null)
+const accessoryTransformStyle = computed(() => generatedAssetTransformStyle(props.accessoryPlacement))
 </script>
 
 <template>
   <div
     class="character-compositor"
-    :data-renderer="legacyHair ? 'legacy-svg-shell' : 'dom-raster-svg'"
+    :data-renderer="legacyHair ? 'legacy-svg-shell' : 'dom-img-svg'"
   >
     <div
       v-if="legacyHair"
@@ -52,31 +56,59 @@ const accessoryStyle = computed(() => {
         class="character-layer raster-layer base-head-layer"
         data-character-layer="base-head"
         data-generated-asset="base-head"
-        :style="baseStyle"
-      />
+      >
+        <img
+          class="asset-sheet-image"
+          :src="STELLA_GENERATED_ASSET_SHEET"
+          :style="baseImageStyle"
+          alt=""
+          aria-hidden="true"
+          draggable="false"
+        />
+      </div>
+
       <div
         class="character-layer face-layer"
         data-character-layer="face-rig"
         v-html="faceSvg"
       />
+
       <div
-        v-if="hairStyle && hairDefinition?.generatedAsset"
+        v-if="hairAssetId && hairImageStyle"
         class="character-layer raster-layer hair-layer"
         data-character-layer="hair"
-        :data-generated-asset="hairDefinition.generatedAsset"
+        :data-generated-asset="hairAssetId"
         :data-hair-id="hairId"
-        :style="hairStyle"
-      />
+        :style="hairTransformStyle"
+      >
+        <img
+          class="asset-sheet-image"
+          :src="STELLA_GENERATED_ASSET_SHEET"
+          :style="hairImageStyle"
+          alt=""
+          aria-hidden="true"
+          draggable="false"
+        />
+      </div>
     </template>
 
     <div
-      v-if="accessoryStyle && accessory"
+      v-if="accessoryAssetId && accessoryImageStyle && accessory"
       class="character-layer raster-layer accessory-layer"
       data-character-layer="accessory"
-      :data-generated-asset="accessory.generatedAsset"
+      :data-generated-asset="accessoryAssetId"
       :data-accessory-id="accessoryId"
-      :style="accessoryStyle"
-    />
+      :style="accessoryTransformStyle"
+    >
+      <img
+        class="asset-sheet-image"
+        :src="STELLA_GENERATED_ASSET_SHEET"
+        :style="accessoryImageStyle"
+        alt=""
+        aria-hidden="true"
+        draggable="false"
+      />
+    </div>
   </div>
 </template>
 
@@ -95,7 +127,12 @@ const accessoryStyle = computed(() => {
   pointer-events: none;
 }
 .raster-layer {
-  background-repeat: no-repeat;
+  overflow: hidden;
+}
+.asset-sheet-image {
+  display: block;
+  pointer-events: none;
+  user-select: none;
 }
 .base-head-layer { z-index: 0; }
 .face-layer,
