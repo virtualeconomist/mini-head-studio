@@ -65,7 +65,7 @@ function inspectAssetSheet(image: HTMLImageElement) {
       const yStart = cell * GENERATED_ASSET_CELL_SIZE
       for (let y = yStart; y < yStart + GENERATED_ASSET_CELL_SIZE; y += sampleStep) {
         for (let x = 0; x < GENERATED_ASSET_CELL_SIZE; x += sampleStep) {
-          const alpha = context.getImageData(x, y, 1, 1).data[3]
+          const alpha = context.getImageData(x, y, 1, 1).data[3] ?? 0
           samples += 1
           if (alpha > 8) visible += 1
         }
