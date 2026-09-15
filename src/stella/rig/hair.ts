@@ -18,6 +18,17 @@ export type ModularHairDefinition = Readonly<{
 }>
 
 export const PLUSH_BOB_RASTER_SOURCE = '/assets/stella/stella-sprite-00.webp'
+export const PLUSH_BOB_FACE_OPENING_ID = 'plush-bob-face-opening'
+
+const PLUSH_BOB_FACE_OPENING_PATH = `M 132 220
+  C 154 206 183 199 214 199
+  C 229 199 243 202 256 206
+  C 269 202 283 199 298 199
+  C 329 199 358 206 380 220
+  C 387 247 390 285 388 344
+  C 385 401 347 433 256 438
+  C 165 433 127 401 124 344
+  C 122 285 125 247 132 220 Z`
 
 export const DEFAULT_HAIR_PLACEMENT: HairPlacement = {
   offsetX: 0,
@@ -64,55 +75,35 @@ function transformFor(placement: HairPlacement) {
 }
 
 /**
- * Definitions used to extract the dark Plush Bob pixels from Stella's original
- * transparent WebP. This keeps the actual fuzzy texture and silhouette instead
- * of approximating the hairstyle with flat vector paths.
+ * The original Stella WebP already contains the exact fuzzy silhouette and
+ * texture we want. Instead of redrawing it, this shell masks out the original
+ * face opening and later restores only the source fringe in front of the rig.
  */
-export function renderStellaHairDefs(sourceHref = PLUSH_BOB_RASTER_SOURCE) {
+export function renderStellaHairDefs() {
   return `<defs data-hair-defs="plush-bob-raster-shell">
-    <filter id="plush-bob-hair-alpha" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
-      <feColorMatrix in="SourceGraphic" result="darkness" type="matrix" values="
-        0 0 0 0 1
-        0 0 0 0 1
-        0 0 0 0 1
-        -0.34 -0.33 -0.33 0 1"/>
-      <feComposite in="darkness" in2="SourceAlpha" operator="in" result="source-darkness"/>
-      <feComponentTransfer in="source-darkness">
-        <feFuncA type="table" tableValues="0 0 0.02 0.18 0.72 1 1"/>
-      </feComponentTransfer>
-    </filter>
+    <clipPath id="${PLUSH_BOB_FACE_OPENING_ID}" clipPathUnits="userSpaceOnUse">
+      <path d="${PLUSH_BOB_FACE_OPENING_PATH}"/>
+    </clipPath>
 
-    <mask id="plush-bob-all-hair-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" mask-type="luminance">
-      <image href="${sourceHref}" x="0" y="0" width="512" height="512" preserveAspectRatio="xMidYMid meet" filter="url(#plush-bob-hair-alpha)"/>
-    </mask>
-
-    <mask id="plush-bob-back-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" mask-type="luminance">
-      <image href="${sourceHref}" x="0" y="0" width="512" height="512" preserveAspectRatio="xMidYMid meet" filter="url(#plush-bob-hair-alpha)"/>
-      <path d="M 139 273
-        C 162 242 202 225 256 225
-        C 310 225 350 242 373 273
-        C 386 294 391 326 388 363
-        C 383 409 347 438 256 442
-        C 165 438 129 409 124 363
-        C 121 326 126 294 139 273 Z"
-        fill="#000"/>
+    <mask id="plush-bob-back-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
+      <rect x="0" y="0" width="512" height="512" fill="#fff"/>
+      <path d="${PLUSH_BOB_FACE_OPENING_PATH}" fill="#000"/>
     </mask>
 
     <clipPath id="plush-bob-fringe-window" clipPathUnits="userSpaceOnUse">
-      <path d="M 88 72 H 424 V 292
-        C 397 292 377 289 356 291
-        C 332 294 310 301 289 306
-        C 272 310 258 309 244 306
-        C 224 302 205 296 184 293
-        C 160 289 133 291 88 296 Z"/>
+      <path d="M 132 198 H 380 V 306
+        C 356 306 334 303 314 300
+        C 292 297 275 296 256 300
+        C 237 296 220 297 198 300
+        C 178 303 156 306 132 306 Z"/>
     </clipPath>
   </defs>`
 }
 
 /**
- * Returns one independent raster hair layer. The layer uses Stella's original
- * Plush Bob source pixels but has no dependency on expression state, removing
- * the old hair × expression sprite multiplication.
+ * Returns one independent source-raster hair layer. It intentionally receives
+ * no expression state, so the same original Plush Bob pixels surround every
+ * parametric face state.
  */
 export function renderStellaHairLayer(
   id: ModularHairId,
@@ -133,8 +124,6 @@ export function renderStellaHairLayer(
 
   return `<g data-hair-id="${id}" data-hair-layer="front" data-hair-source="raster" transform="${transform}">
     <image href="${sourceHref}" x="0" y="0" width="512" height="512"
-      preserveAspectRatio="xMidYMid meet"
-      mask="url(#plush-bob-all-hair-mask)"
-      clip-path="url(#plush-bob-fringe-window)"/>
+      preserveAspectRatio="xMidYMid meet" clip-path="url(#plush-bob-fringe-window)"/>
   </g>`
 }
