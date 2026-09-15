@@ -18,7 +18,7 @@ export type ModularHairDefinition = Readonly<{
 }>
 
 export const PLUSH_BOB_RASTER_SOURCE = '/assets/stella/stella-sprite-00.webp'
-export const PLUSH_BOB_FACE_OPENING_ID = 'plush-bob-face-opening'
+export const PLUSH_BOB_FACE_OPENING_ID = 'plush-bob-face-opening-fitted'
 
 const PLUSH_BOB_FACE_OPENING_PATH = `M 132 220
   C 154 206 183 199 214 199
@@ -79,10 +79,13 @@ function transformFor(placement: HairPlacement) {
  * texture we want. Instead of redrawing it, this shell masks out the original
  * face opening and later restores only the source fringe in front of the rig.
  */
-export function renderStellaHairDefs() {
+export function renderStellaHairDefs(placementInput: Partial<HairPlacement> = {}) {
+  const placement = normalizeHairPlacement(placementInput)
+  const fittedTransform = transformFor(placement)
+
   return `<defs data-hair-defs="plush-bob-raster-shell">
     <clipPath id="${PLUSH_BOB_FACE_OPENING_ID}" clipPathUnits="userSpaceOnUse">
-      <path d="${PLUSH_BOB_FACE_OPENING_PATH}"/>
+      <path d="${PLUSH_BOB_FACE_OPENING_PATH}" transform="${fittedTransform}"/>
     </clipPath>
 
     <mask id="plush-bob-back-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
