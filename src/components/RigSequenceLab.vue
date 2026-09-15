@@ -101,7 +101,7 @@ const statusLabel = computed(() => sample.value.inTransition
   ? `${sample.value.from} → ${sample.value.to} · ${Math.round(sample.value.easedProgress * 100)}%`
   : `${sample.value.from} · hold`
 )
-const hairLabel = computed(() => hairId.value === 'none' ? 'Face only' : 'Plush Bob · vector shell')
+const hairLabel = computed(() => hairId.value === 'none' ? 'Face only' : 'Plush Bob · original raster shell')
 
 watch([order, holds, transitionMs, easing, easeStrength, seamless, hairId, hairPlacement], () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -204,7 +204,7 @@ async function exportRigLoop() {
   exportProgress.value = 0
   exportStatus.value = hairId.value === 'none'
     ? 'Rendering modular face frames…'
-    : 'Rendering layered hair + modular face frames…'
+    : 'Rendering original Plush Bob shell + modular face frames…'
 
   try {
     const blob = await createRigSequenceExport({
@@ -244,7 +244,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
       <div>
         <span class="sequence-lab__eyebrow">MODULAR RIG · CHARACTER SHELL</span>
         <h2>Expression Sequencer</h2>
-        <p>The face still morphs parametrically, but Plush Bob is now an independent vector shell: back hair → reusable face rig → front fringe. No hair × expression sprites are required.</p>
+        <p>The face morphs parametrically while Plush Bob is extracted from Stella's original raster artwork as independent back-hair and fringe layers. The fuzzy source texture stays intact without hair × expression sprite combinations.</p>
       </div>
       <span class="sequence-lab__duration">{{ durationLabel }}</span>
     </div>
@@ -256,7 +256,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
           <span>Layer</span>
           <select v-model="hairId">
             <option value="none">None · face only</option>
-            <option v-for="hair in STELLA_MODULAR_HAIRS" :key="hair.id" :value="hair.id">{{ hair.label }} · modular</option>
+            <option v-for="hair in STELLA_MODULAR_HAIRS" :key="hair.id" :value="hair.id">{{ hair.label }} · source raster</option>
           </select>
         </label>
         <button type="button" :disabled="hairId === 'none'" @click="resetHairFit">Reset fit</button>
@@ -267,7 +267,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
         <label><span>Scale <em>{{ hairPlacement.scale.toFixed(2) }}</em></span><input v-model.number="hairPlacement.scale" type="range" min="0.82" max="1.18" step="0.01" /></label>
         <label><span>Rotate <em>{{ hairPlacement.rotation }}°</em></span><input v-model.number="hairPlacement.rotation" type="range" min="-8" max="8" step="0.5" /></label>
       </div>
-      <p v-if="hairId !== 'none'">Fit controls affect only the independent hair shell and are mirrored exactly into GIF/MP4/WebM export.</p>
+      <p v-if="hairId !== 'none'">The shell is masked from Stella's original Plush Bob source image. Fit controls move only that reusable source layer and are mirrored exactly into GIF/MP4/WebM export.</p>
     </div>
 
     <div class="sequence-palette">
@@ -300,7 +300,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
         <div class="sequence-export">
           <div class="sequence-export__head">
             <div><span>DIRECT MODULAR EXPORT</span><strong>Export this exact layered character loop</strong></div>
-            <span>{{ hairId === 'none' ? 'FACE ONLY' : 'HAIR + FACE' }}</span>
+            <span>{{ hairId === 'none' ? 'FACE ONLY' : 'SOURCE HAIR + FACE' }}</span>
           </div>
           <div class="sequence-export__controls">
             <label><span>Format</span><select v-model="exportFormat"><option value="gif">GIF</option><option value="mp4">MP4</option><option value="webm">WebM</option></select></label>
@@ -312,7 +312,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
             {{ exporting ? `Rendering ${Math.round(exportProgress * 100)}%` : `Export modular ${exportFormat.toUpperCase()}` }}
           </button>
           <div v-if="exporting" class="sequence-export__progress" aria-hidden="true"><span :style="{ width: `${Math.round(exportProgress * 100)}%` }" /></div>
-          <p>{{ exportStatus || 'Preview and export share the same character compositor, expression timeline, easing, hair placement and layer order.' }}</p>
+          <p>{{ exportStatus || 'Preview and export share the same parametric face, original raster hair source, sequence timing, placement and layer order.' }}</p>
         </div>
       </div>
 
