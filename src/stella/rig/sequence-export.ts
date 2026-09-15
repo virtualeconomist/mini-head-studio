@@ -4,7 +4,11 @@ import {
   expressionSequenceDurationMs,
   type ExpressionSequence
 } from '../expression-sequence'
-import type { HairPlacement, ModularHairId } from './hair'
+import {
+  PLUSH_BOB_RASTER_SOURCE,
+  type HairPlacement,
+  type ModularHairId
+} from './hair'
 import { rigFrameForSequence } from './sequence-renderer'
 import type { FaceRigState } from './types'
 
@@ -56,11 +60,33 @@ function loadSvgImage(svg: string) {
   })
 }
 
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error('Unable to inline modular hair source'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+/**
+ * SVGs loaded through an <img> are not guaranteed to fetch nested external
+ * resources. Inline the raster shell once before frame encoding so exported
+ * GIF/MP4/WebM frames use the exact same original Plush Bob pixels as preview.
+ */
+async function resolveHairSourceForExport(hairId: ModularHairId) {
+  if (hairId === 'none') return undefined
+  const response = await fetch(PLUSH_BOB_RASTER_SOURCE)
+  if (!response.ok) throw new Error('Unable to load original Plush Bob source for export')
+  return blobToDataUrl(await response.blob())
+}
+
 async function drawRigFrame(
   canvas: HTMLCanvasElement,
   context: CanvasRenderingContext2D,
   options: RigSequenceExportOptions,
-  elapsedMs: number
+  elapsedMs: number,
+  hairSource?: string
 ) {
   context.clearRect(0, 0, options.size, options.size)
   const opaqueVideo = options.format !== 'gif'
@@ -70,7 +96,8 @@ async function drawRigFrame(
 
   const frame = rigFrameForSequence(options.sequence, elapsedMs, {
     hairId: options.hairId ?? 'plush-bob',
-    hairPlacement: options.hairPlacement
+    hairPlacement: options.hairPlacement,
+    hairSource
   })
   const { image, url } = await loadSvgImage(frame.svg)
   try {
@@ -83,8 +110,8 @@ async function drawRigFrame(
 
 /**
  * Encodes the exact modular character timeline rather than swapping raster sprites.
- * Hair and face use the same layered SVG composition as the live rig preview.
- * GIF may remain transparent; browser video codecs are exported over the studio backdrop.
+ * The face remains parametric while the source-faithful raster hair shell is
+ * composited through the same layered SVG renderer used by live preview.
  */
 export async function createRigSequenceExport(
   options: RigSequenceExportOptions
@@ -92,6 +119,8 @@ export async function createRigSequenceExport(
   const totalDurationMs = expressionSequenceDurationMs(options.sequence)
   if (totalDurationMs <= 0) throw new Error('The rig sequence has no duration')
 
+  const hairId = options.hairId ?? 'plush-bob'
+  const hairSource = await resolveHairSourceForExport(hairId)
   const frameCount = Math.max(2, Math.round((totalDurationMs / 1000) * options.fps))
   const canvas = document.createElement('canvas')
   canvas.width = options.size
@@ -108,7 +137,7 @@ export async function createRigSequenceExport(
       frameCount,
       options.fps,
       async (index) => {
-        await drawRigFrame(canvas, context, options, elapsedForFrame(index))
+        await drawRigFrame(canvas, context, options, elapsedForFrame(index), hairSource)
       },
       options.format,
       options.quality,
@@ -118,7 +147,7 @@ export async function createRigSequenceExport(
 
   const frames: Uint8ClampedArray[] = []
   for (let index = 0; index < frameCount; index += 1) {
-    await drawRigFrame(canvas, context, options, elapsedForFrame(index))
+    await drawRigFrame(canvas, context, options, elapsedForFrame(index), hairSource)
     frames.push(context.getImageData(0, 0, options.size, options.size).data)
     options.onProgress?.((index + 1) / (frameCount * 3))
     if (index % 3 === 2) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
