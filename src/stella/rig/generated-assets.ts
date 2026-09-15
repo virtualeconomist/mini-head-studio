@@ -60,7 +60,14 @@ export function layerTransform(placementInput: Partial<LayerPlacement> = {}) {
   return `translate(${placement.offsetX} ${placement.offsetY}) translate(256 256) rotate(${placement.rotation}) scale(${placement.scale}) translate(-256 -256)`
 }
 
-/** Render one 512×512 cell from the vertically stacked generated asset sheet. */
+/**
+ * Render one 512×512 cell from the vertically stacked generated asset sheet.
+ *
+ * This intentionally avoids a nested <svg viewBox>. Some browsers fail to
+ * resolve external raster images inside nested SVG viewports inserted via
+ * innerHTML. A translated image clipped by a normal <clipPath> is simpler and
+ * uses the same image path that already works for the legacy Stella raster.
+ */
 export function renderGeneratedAssetCell(
   id: GeneratedAssetId,
   placementInput: Partial<LayerPlacement> = {},
@@ -71,9 +78,16 @@ export function renderGeneratedAssetCell(
   const transform = layerTransform(placementInput)
   const y = asset.cell * GENERATED_ASSET_CELL_SIZE
   const sheetHeight = GENERATED_ASSET_CELL_SIZE * GENERATED_ASSET_CELL_COUNT
+  const clipId = `generated-asset-clip-${id}`
+
   return `<g data-generated-asset="${id}" data-generated-kind="${asset.kind}" transform="${transform}" ${attributes}>
-    <svg x="0" y="0" width="512" height="512" viewBox="0 ${y} 512 512" overflow="hidden" preserveAspectRatio="xMidYMid meet">
-      <image href="${sourceHref}" x="0" y="0" width="512" height="${sheetHeight}" preserveAspectRatio="none"/>
-    </svg>
+    <defs>
+      <clipPath id="${clipId}" clipPathUnits="userSpaceOnUse">
+        <rect x="0" y="0" width="512" height="512"/>
+      </clipPath>
+    </defs>
+    <g clip-path="url(#${clipId})">
+      <image href="${sourceHref}" x="0" y="${-y}" width="512" height="${sheetHeight}" preserveAspectRatio="none"/>
+    </g>
   </g>`
 }
