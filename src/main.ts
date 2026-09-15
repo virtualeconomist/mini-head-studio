@@ -7,3 +7,13 @@ import { installExpressionLoop } from './expression-loop'
 createApp(App).mount('#app')
 installFreeMotionToggle()
 installExpressionLoop()
+
+if (new URLSearchParams(window.location.search).get('lab') === 'rig') {
+  const mount = document.createElement('div')
+  mount.id = 'rig-lab-root'
+  document.body.append(mount)
+
+  void import('./components/RigLabPage.vue').then(({ default: RigLabPage }) => {
+    createApp(RigLabPage).mount(mount)
+  })
+}
