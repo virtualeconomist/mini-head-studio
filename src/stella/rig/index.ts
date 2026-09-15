@@ -28,7 +28,7 @@ export {
   renderStellaHairLayer
 } from './hair'
 export { clamp01, interpolateFaceRigState, lerp } from './interpolate'
-export { renderStellaCharacterSvg } from './render-character'
+export { renderStellaCharacterSvg, renderStellaFaceFeaturesSvg } from './render-character'
 export { renderFaceRigSvg } from './render-svg'
 export { createRigSequenceExport, rigStateForExpressionSequence } from './sequence-export'
 export { rigFrameForSequence, rigSequenceRenderer } from './sequence-renderer'
