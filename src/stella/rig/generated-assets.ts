@@ -26,6 +26,20 @@ export type GeneratedAssetLayerStyle = Readonly<{
   transformOrigin: '50% 50%'
 }>
 
+export type GeneratedAssetImageStyle = Readonly<{
+  position: 'absolute'
+  left: string
+  top: string
+  width: string
+  height: string
+  maxWidth: 'none'
+}>
+
+export type GeneratedAssetTransformStyle = Readonly<{
+  transform: string
+  transformOrigin: '50% 50%'
+}>
+
 export const DEFAULT_LAYER_PLACEMENT: LayerPlacement = {
   offsetX: 0,
   offsetY: 0,
@@ -74,11 +88,7 @@ function percent(value: number) {
   return `${Object.is(rounded, -0) ? 0 : rounded}%`
 }
 
-/**
- * CSS equivalent of the canvas placement transform. Offsets are authored in
- * the rig's 512×512 coordinate space and converted to percentages so preview
- * placement stays identical as the responsive stage changes size.
- */
+/** CSS transform equivalent of the canvas 512-space placement. */
 export function layerCssTransform(placementInput: Partial<LayerPlacement> = {}) {
   const placement = normalizeLayerPlacement(placementInput)
   const offsetX = percent((placement.offsetX / GENERATED_ASSET_CELL_SIZE) * 100)
@@ -86,10 +96,38 @@ export function layerCssTransform(placementInput: Partial<LayerPlacement> = {}) 
   return `translate(${offsetX}, ${offsetY}) rotate(${placement.rotation}deg) scale(${placement.scale})`
 }
 
+/** Apply authored placement to the clipped 512×512 DOM layer, not the tall sheet image. */
+export function generatedAssetTransformStyle(
+  placementInput: Partial<LayerPlacement> = {}
+): GeneratedAssetTransformStyle {
+  return {
+    transform: layerCssTransform(placementInput),
+    transformOrigin: '50% 50%'
+  }
+}
+
 /**
- * Style one 512×512 cell from the vertical sheet as a normal browser layer.
- * The background-position percentages account for CSS background positioning's
- * available-space behavior: 0/20/40/60/80/100% select cells 0–5 exactly.
+ * Position the real vertical sheet <img> inside a clipped 1:1 layer.
+ * Each cell is exactly one stage-height tall, so cells 0–5 use top offsets
+ * 0/-100/-200/-300/-400/-500% while the image itself is 600% tall.
+ */
+export function generatedAssetImageStyle(id: GeneratedAssetId): GeneratedAssetImageStyle {
+  const asset = STELLA_GENERATED_ASSETS[id]
+  return {
+    position: 'absolute',
+    left: '0',
+    top: `${asset.cell === 0 ? 0 : -asset.cell * 100}%`,
+    width: '100%',
+    height: `${GENERATED_ASSET_CELL_COUNT * 100}%`,
+    maxWidth: 'none'
+  }
+}
+
+/**
+ * Legacy CSS-background crop retained for internal compatibility tests only.
+ * Production generated preview uses a real <img> element via
+ * generatedAssetImageStyle() so raster requests cannot silently disappear as
+ * CSS backgrounds.
  */
 export function generatedAssetLayerStyle(
   id: GeneratedAssetId,
@@ -111,10 +149,7 @@ export function generatedAssetLayerStyle(
   }
 }
 
-/**
- * SVG compatibility renderer retained for legacy/internal experiments only.
- * Generated character preview/export use real DOM and canvas raster layers.
- */
+/** SVG compatibility renderer retained for legacy/internal experiments only. */
 export function renderGeneratedAssetCell(
   id: GeneratedAssetId,
   placementInput: Partial<LayerPlacement> = {},
