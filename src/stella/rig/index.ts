@@ -1,6 +1,7 @@
 export { STELLA_EXPRESSION_PRESETS, getStellaExpressionPreset } from './expression-presets'
 export {
   DEFAULT_HAIR_PLACEMENT,
+  PLUSH_BOB_FACE_OPENING_ID,
   PLUSH_BOB_RASTER_SOURCE,
   STELLA_MODULAR_HAIRS,
   modularHairDefinition,
