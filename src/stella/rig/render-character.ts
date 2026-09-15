@@ -1,5 +1,6 @@
 import { renderFaceRigSvg } from './render-svg'
 import {
+  PLUSH_BOB_FACE_OPENING_ID,
   PLUSH_BOB_RASTER_SOURCE,
   renderStellaHairDefs,
   renderStellaHairLayer,
@@ -29,11 +30,11 @@ function innerSvgMarkup(svg: string) {
  *
  * Layer order is intentionally explicit:
  *   1. source-faithful raster back hair
- *   2. reusable parametric face/head rig
+ *   2. reusable parametric face/head rig clipped to the fitted hair opening
  *   3. source-faithful raster fringe
  *
- * The hair renderer never receives expression state. The same extracted source
- * artwork surrounds every rig state without hair × expression sprite variants.
+ * The hair renderer never receives expression state. The same source artwork
+ * surrounds every rig state without hair × expression sprite variants.
  */
 export function renderStellaCharacterSvg(
   state: FaceRigState,
@@ -50,12 +51,13 @@ export function renderStellaCharacterSvg(
   )
   const faceBody = innerSvgMarkup(faceSvg)
   const { width, height } = STELLA_RIG_MANIFEST.viewBox
+  const faceClip = hairId === 'none' ? '' : ` clip-path="url(#${PLUSH_BOB_FACE_OPENING_ID})"`
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${label}" data-character-shell="stella" data-hair="${hairId}">
-  ${hairId === 'none' ? '' : renderStellaHairDefs(hairSource)}
+  ${hairId === 'none' ? '' : renderStellaHairDefs(hairPlacement)}
   ${renderStellaHairLayer(hairId, 'back', hairPlacement, hairSource)}
-  <g data-character-layer="face-rig">
+  <g data-character-layer="face-rig"${faceClip}>
     ${faceBody}
   </g>
   ${renderStellaHairLayer(hairId, 'front', hairPlacement, hairSource)}
