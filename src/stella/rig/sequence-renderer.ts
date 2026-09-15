@@ -19,7 +19,7 @@ export type RigSequenceRenderOptions = Readonly<{
 export type RigSequenceFrame = SequenceRendererFrame & Readonly<{
   mode: 'rig'
   state: FaceRigState
-  /** Compatibility SVG used by the legacy source-mask hair experiment. */
+  /** Compatibility SVG used only by the legacy source-mask hair experiment. */
   svg: string
   /** Raster-free parametric feature layer used by the real layered compositor. */
   faceSvg: string
@@ -53,9 +53,7 @@ export function rigFrameForSequence(
       hairId,
       hairPlacement: options.hairPlacement,
       hairSource: options.hairSource,
-      accessoryId,
-      accessoryPlacement: options.accessoryPlacement,
-      assetSheetSource: options.assetSheetSource,
+      accessoryId: 'none',
       label
     })
   }

@@ -1,25 +1,59 @@
 import { describe, expect, it } from 'vitest'
 import type { ExpressionSequence } from '../expression-sequence'
+import { accessoryDefinition } from './accessory'
 import { STELLA_EXPRESSION_PRESETS } from './expression-presets'
-import { PLUSH_BOB_RASTER_SOURCE } from './hair'
-import { STELLA_GENERATED_ASSET_SHEET } from './generated-assets'
+import {
+  STELLA_GENERATED_ASSETS,
+  STELLA_GENERATED_ASSET_SHEET,
+  generatedAssetLayerStyle,
+  layerCssTransform
+} from './generated-assets'
+import { PLUSH_BOB_RASTER_SOURCE, modularHairDefinition } from './hair'
 import { renderStellaCharacterSvg, renderStellaFaceFeaturesSvg } from './render-character'
+import { rigCompositeLayerOrder } from './sequence-export'
 import { rigFrameForSequence } from './sequence-renderer'
 
 describe('generated Stella character asset pack', () => {
-  it('keeps the compatibility SVG capable of describing generated layers', () => {
+  it('resolves the generated base head as a real raster-sheet layer', () => {
+    expect(STELLA_GENERATED_ASSETS['base-head']).toMatchObject({ kind: 'base', cell: 0 })
+    expect(generatedAssetLayerStyle('base-head')).toMatchObject({
+      backgroundImage: `url("${STELLA_GENERATED_ASSET_SHEET}")`,
+      backgroundPosition: 'center 0%',
+      backgroundSize: '100% 600%'
+    })
+  })
+
+  it('resolves every generated hair selection to the expected raster asset', () => {
+    expect(modularHairDefinition('generated-classic-bob')?.generatedAsset).toBe('classic-bob')
+    expect(modularHairDefinition('generated-star-buns')?.generatedAsset).toBe('star-buns')
+    expect(modularHairDefinition('generated-orange-bob')?.generatedAsset).toBe('orange-bob')
+    expect(modularHairDefinition('generated-cat-bob')?.generatedAsset).toBe('cat-bob')
+    expect(generatedAssetLayerStyle('classic-bob').backgroundPosition).toBe('center 80%')
+  })
+
+  it('resolves the White Cat Bandana as the accessory raster layer', () => {
+    expect(accessoryDefinition('cat-bandana')?.generatedAsset).toBe('cat-bandana')
+    expect(generatedAssetLayerStyle('cat-bandana').backgroundPosition).toBe('center 100%')
+  })
+
+  it('keeps CSS placement transforms deterministic in 512-space', () => {
+    const placement = { offsetX: 24, offsetY: -12, scale: 1.1, rotation: 6 }
+    expect(layerCssTransform(placement)).toBe('translate(4.6875%, -2.34375%) rotate(6deg) scale(1.1)')
+    expect(generatedAssetLayerStyle('star-buns', placement).transform)
+      .toBe('translate(4.6875%, -2.34375%) rotate(6deg) scale(1.1)')
+  })
+
+  it('keeps generated raster assets out of the compatibility SVG', () => {
     const svg = renderStellaCharacterSvg(STELLA_EXPRESSION_PRESETS.happy, {
       hairId: 'generated-classic-bob',
       accessoryId: 'cat-bandana'
     })
-    expect(svg).toContain('data-generated-asset="base-head"')
-    expect(svg).toContain('data-generated-asset="classic-bob"')
-    expect(svg).toContain('data-generated-asset="cat-bandana"')
-    expect(svg).toContain(STELLA_GENERATED_ASSET_SHEET)
-    expect(svg).not.toContain(PLUSH_BOB_RASTER_SOURCE)
+    expect(svg).toContain('data-character-layer="face-rig-features"')
+    expect(svg).not.toContain('<image')
+    expect(svg).not.toContain(STELLA_GENERATED_ASSET_SHEET)
   })
 
-  it('exposes a raster-free face-feature SVG for the real layered compositor', () => {
+  it('exposes a raster-free face-feature SVG for the DOM/canvas compositor', () => {
     const svg = renderStellaFaceFeaturesSvg(STELLA_EXPRESSION_PRESETS.wink)
     expect(svg).toContain('data-character-layer="face-rig-features"')
     expect(svg).not.toContain('data-generated-asset=')
@@ -47,13 +81,25 @@ describe('generated Stella character asset pack', () => {
     expect(frame.accessoryId).toBe('cat-bandana')
     expect(frame.faceSvg).toContain('data-character-layer="face-rig-features"')
     expect(frame.faceSvg).not.toContain(STELLA_GENERATED_ASSET_SHEET)
+    expect(frame.svg).not.toContain(STELLA_GENERATED_ASSET_SHEET)
   })
 
-  it('supports generated star buns and orange bob as substitutable layers', () => {
-    const star = renderStellaCharacterSvg(STELLA_EXPRESSION_PRESETS.wink, { hairId: 'generated-star-buns' })
-    const orange = renderStellaCharacterSvg(STELLA_EXPRESSION_PRESETS.love, { hairId: 'generated-orange-bob' })
-    expect(star).toContain('data-generated-asset="star-buns"')
-    expect(orange).toContain('data-generated-asset="orange-bob"')
+  it('uses the required export layer order for generated and legacy characters', () => {
+    expect(rigCompositeLayerOrder('generated-classic-bob', 'cat-bandana')).toEqual([
+      'base-head',
+      'face-rig',
+      'hair',
+      'accessory'
+    ])
+    expect(rigCompositeLayerOrder('none', 'cat-bandana')).toEqual([
+      'base-head',
+      'face-rig',
+      'accessory'
+    ])
+    expect(rigCompositeLayerOrder('plush-bob', 'cat-bandana')).toEqual([
+      'legacy-character',
+      'accessory'
+    ])
   })
 
   it('keeps the earlier source-mask Plush Bob available as a legacy option', () => {

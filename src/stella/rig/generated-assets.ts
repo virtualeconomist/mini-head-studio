@@ -17,6 +17,15 @@ export type LayerPlacement = Readonly<{
   rotation: number
 }>
 
+export type GeneratedAssetLayerStyle = Readonly<{
+  backgroundImage: string
+  backgroundPosition: string
+  backgroundRepeat: 'no-repeat'
+  backgroundSize: string
+  transform: string
+  transformOrigin: '50% 50%'
+}>
+
 export const DEFAULT_LAYER_PLACEMENT: LayerPlacement = {
   offsetX: 0,
   offsetY: 0,
@@ -60,13 +69,51 @@ export function layerTransform(placementInput: Partial<LayerPlacement> = {}) {
   return `translate(${placement.offsetX} ${placement.offsetY}) translate(256 256) rotate(${placement.rotation}) scale(${placement.scale}) translate(-256 -256)`
 }
 
+function percent(value: number) {
+  const rounded = Math.round(value * 1_000_000) / 1_000_000
+  return `${Object.is(rounded, -0) ? 0 : rounded}%`
+}
+
 /**
- * Render one 512×512 cell from the vertically stacked generated asset sheet.
- *
- * This intentionally avoids a nested <svg viewBox>. Some browsers fail to
- * resolve external raster images inside nested SVG viewports inserted via
- * innerHTML. A translated image clipped by a normal <clipPath> is simpler and
- * uses the same image path that already works for the legacy Stella raster.
+ * CSS equivalent of the canvas placement transform. Offsets are authored in
+ * the rig's 512×512 coordinate space and converted to percentages so preview
+ * placement stays identical as the responsive stage changes size.
+ */
+export function layerCssTransform(placementInput: Partial<LayerPlacement> = {}) {
+  const placement = normalizeLayerPlacement(placementInput)
+  const offsetX = percent((placement.offsetX / GENERATED_ASSET_CELL_SIZE) * 100)
+  const offsetY = percent((placement.offsetY / GENERATED_ASSET_CELL_SIZE) * 100)
+  return `translate(${offsetX}, ${offsetY}) rotate(${placement.rotation}deg) scale(${placement.scale})`
+}
+
+/**
+ * Style one 512×512 cell from the vertical sheet as a normal browser layer.
+ * The background-position percentages account for CSS background positioning's
+ * available-space behavior: 0/20/40/60/80/100% select cells 0–5 exactly.
+ */
+export function generatedAssetLayerStyle(
+  id: GeneratedAssetId,
+  placementInput: Partial<LayerPlacement> = {},
+  sourceHref = STELLA_GENERATED_ASSET_SHEET
+): GeneratedAssetLayerStyle {
+  const asset = STELLA_GENERATED_ASSETS[id]
+  const cellPosition = GENERATED_ASSET_CELL_COUNT <= 1
+    ? 0
+    : (asset.cell / (GENERATED_ASSET_CELL_COUNT - 1)) * 100
+
+  return {
+    backgroundImage: `url("${sourceHref}")`,
+    backgroundPosition: `center ${percent(cellPosition)}`,
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: `100% ${GENERATED_ASSET_CELL_COUNT * 100}%`,
+    transform: layerCssTransform(placementInput),
+    transformOrigin: '50% 50%'
+  }
+}
+
+/**
+ * SVG compatibility renderer retained for legacy/internal experiments only.
+ * Generated character preview/export use real DOM and canvas raster layers.
  */
 export function renderGeneratedAssetCell(
   id: GeneratedAssetId,

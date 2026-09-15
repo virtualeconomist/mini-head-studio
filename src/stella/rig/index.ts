@@ -5,6 +5,8 @@ export {
   GENERATED_ASSET_CELL_SIZE,
   STELLA_GENERATED_ASSETS,
   STELLA_GENERATED_ASSET_SHEET,
+  generatedAssetLayerStyle,
+  layerCssTransform,
   layerTransform,
   normalizeLayerPlacement,
   renderGeneratedAssetCell
@@ -30,13 +32,13 @@ export {
 export { clamp01, interpolateFaceRigState, lerp } from './interpolate'
 export { renderStellaCharacterSvg, renderStellaFaceFeaturesSvg } from './render-character'
 export { renderFaceRigSvg } from './render-svg'
-export { createRigSequenceExport, rigStateForExpressionSequence } from './sequence-export'
+export { createRigSequenceExport, rigCompositeLayerOrder, rigStateForExpressionSequence } from './sequence-export'
 export { rigFrameForSequence, rigSequenceRenderer } from './sequence-renderer'
 export { STELLA_RIG_MANIFEST } from './stella-manifest'
 export type { AccessoryDefinition, AccessoryId, AccessoryPlacement } from './accessory'
-export type { GeneratedAssetId, LayerPlacement } from './generated-assets'
+export type { GeneratedAssetId, GeneratedAssetLayerStyle, LayerPlacement } from './generated-assets'
 export type { HairLayerPart, HairPlacement, ModularHairDefinition, ModularHairId } from './hair'
 export type { StellaCharacterRenderOptions } from './render-character'
-export type { RigSequenceExportBackground, RigSequenceExportFormat, RigSequenceExportOptions } from './sequence-export'
+export type { RigCompositeLayer, RigSequenceExportBackground, RigSequenceExportFormat, RigSequenceExportOptions } from './sequence-export'
 export type { RigSequenceFrame, RigSequenceRenderOptions } from './sequence-renderer'
 export type { BlushRigState, BrowRigState, CharacterRigManifest, ExpressionEffectsState, EyeRigState, EyeShapeWeights, FaceRigAnchors, FaceRigState, MouthRigState, Vec2 } from './types'

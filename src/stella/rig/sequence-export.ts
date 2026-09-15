@@ -24,6 +24,7 @@ import type { FaceRigState } from './types'
 
 export type RigSequenceExportFormat = 'gif' | VideoExportFormat
 export type RigSequenceExportBackground = 'studio' | 'transparent'
+export type RigCompositeLayer = 'base-head' | 'face-rig' | 'hair' | 'legacy-character' | 'accessory'
 
 export type RigSequenceExportOptions = Readonly<{
   sequence: ExpressionSequence
@@ -41,6 +42,28 @@ export type RigSequenceExportOptions = Readonly<{
 
 export function rigStateForExpressionSequence(sequence: ExpressionSequence, elapsedMs: number): FaceRigState {
   return rigFrameForSequence(sequence, elapsedMs, { hairId: 'none' }).state
+}
+
+/**
+ * Canonical compositing order used by export. Generated characters always draw
+ * base raster → parametric face → generated hair → generated accessory.
+ */
+export function rigCompositeLayerOrder(
+  hairId: ModularHairId = 'generated-classic-bob',
+  accessoryId: AccessoryId = 'none'
+): readonly RigCompositeLayer[] {
+  const hair = modularHairDefinition(hairId)
+  const layers: RigCompositeLayer[] = []
+
+  if (hair?.sourceKind === 'raster-shell') {
+    layers.push('legacy-character')
+  } else {
+    layers.push('base-head', 'face-rig')
+    if (hair?.sourceKind === 'generated-overlay') layers.push('hair')
+  }
+
+  if (accessoryDefinition(accessoryId)) layers.push('accessory')
+  return layers
 }
 
 function studioBackdrop(context: CanvasRenderingContext2D, size: number) {
@@ -167,56 +190,54 @@ async function drawRigFrame(
   const accessoryId = options.accessoryId ?? 'none'
   const hairDefinition = modularHairDefinition(hairId)
   const accessory = accessoryDefinition(accessoryId)
+  const frame = rigFrameForSequence(options.sequence, elapsedMs, {
+    hairId,
+    hairPlacement: options.hairPlacement,
+    hairSource: resources.hairSource,
+    accessoryId: 'none'
+  })
 
-  if (resources.legacyHair) {
-    // Keep the already-working legacy source-mask compositor intact, but draw
-    // generated accessories separately so no asset-sheet image is nested in SVG.
-    const frame = rigFrameForSequence(options.sequence, elapsedMs, {
-      hairId,
-      hairPlacement: options.hairPlacement,
-      hairSource: resources.hairSource,
-      accessoryId: 'none'
-    })
-    await drawSvgLayer(context, frame.svg, options.size)
-  } else {
-    if (!resources.assetSheetImage) throw new Error('Generated character asset pack is unavailable')
-
-    const frame = rigFrameForSequence(options.sequence, elapsedMs, {
-      hairId,
-      hairPlacement: options.hairPlacement,
-      accessoryId: 'none'
-    })
-
-    // Real image + SVG compositor: base raster head, parametric face features,
-    // then the selected generated hair overlay.
-    drawAssetCell(
-      context,
-      resources.assetSheetImage,
-      STELLA_GENERATED_ASSETS['base-head'].cell,
-      options.size
-    )
-    await drawSvgLayer(context, frame.faceSvg, options.size)
-
-    if (hairDefinition?.sourceKind === 'generated-overlay' && hairDefinition.generatedAsset) {
-      drawAssetCell(
-        context,
-        resources.assetSheetImage,
-        STELLA_GENERATED_ASSETS[hairDefinition.generatedAsset].cell,
-        options.size,
-        normalizeHairPlacement(options.hairPlacement)
-      )
+  for (const layer of rigCompositeLayerOrder(hairId, accessoryId)) {
+    switch (layer) {
+      case 'legacy-character':
+        await drawSvgLayer(context, frame.svg, options.size)
+        break
+      case 'base-head':
+        if (!resources.assetSheetImage) throw new Error('Generated character asset pack is unavailable')
+        drawAssetCell(
+          context,
+          resources.assetSheetImage,
+          STELLA_GENERATED_ASSETS['base-head'].cell,
+          options.size
+        )
+        break
+      case 'face-rig':
+        await drawSvgLayer(context, frame.faceSvg, options.size)
+        break
+      case 'hair':
+        if (!resources.assetSheetImage) throw new Error('Generated character asset pack is unavailable')
+        if (hairDefinition?.sourceKind !== 'generated-overlay' || !hairDefinition.generatedAsset) break
+        drawAssetCell(
+          context,
+          resources.assetSheetImage,
+          STELLA_GENERATED_ASSETS[hairDefinition.generatedAsset].cell,
+          options.size,
+          normalizeHairPlacement(options.hairPlacement)
+        )
+        break
+      case 'accessory':
+        if (!resources.assetSheetImage || !accessory?.generatedAsset) {
+          throw new Error('Generated accessory asset is unavailable')
+        }
+        drawAssetCell(
+          context,
+          resources.assetSheetImage,
+          STELLA_GENERATED_ASSETS[accessory.generatedAsset].cell,
+          options.size,
+          options.accessoryPlacement
+        )
+        break
     }
-  }
-
-  if (accessory?.generatedAsset) {
-    if (!resources.assetSheetImage) throw new Error('Generated accessory asset is unavailable')
-    drawAssetCell(
-      context,
-      resources.assetSheetImage,
-      STELLA_GENERATED_ASSETS[accessory.generatedAsset].cell,
-      options.size,
-      options.accessoryPlacement
-    )
   }
 
   return canvas
