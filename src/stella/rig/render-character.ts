@@ -47,6 +47,29 @@ function faceFeaturesOnly(markup: string) {
   )
 }
 
+/**
+ * Standalone parametric face-feature SVG used by the real layered preview/export
+ * compositor. It deliberately contains no raster assets and no procedural head
+ * fill, so the base head, hair, and accessories can be normal image layers.
+ */
+export function renderStellaFaceFeaturesSvg(
+  state: FaceRigState,
+  label = `${STELLA_RIG_MANIFEST.label} modular face features`
+) {
+  const source = renderFaceRigSvg(STELLA_RIG_MANIFEST, state, label)
+  const body = faceFeaturesOnly(innerSvgMarkup(source))
+  const { width, height } = STELLA_RIG_MANIFEST.viewBox
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${label}" data-character-layer="face-rig-features">
+  ${body}
+</svg>`
+}
+
+/**
+ * SVG compatibility compositor retained for the legacy source-mask experiment
+ * and existing tests. Generated asset-pack preview/export now use explicit image
+ * layers instead of nesting raster images inside this SVG.
+ */
 export function renderStellaCharacterSvg(
   state: FaceRigState,
   options: StellaCharacterRenderOptions = {}
