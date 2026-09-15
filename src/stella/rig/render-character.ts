@@ -75,7 +75,13 @@ export function renderStellaCharacterSvg(
 
   if (!legacyHair) {
     if (hairId === 'none') {
-      return renderFaceRigSvg(STELLA_RIG_MANIFEST, state, label)
+      const faceSvg = renderFaceRigSvg(STELLA_RIG_MANIFEST, state, label)
+      const faceBody = innerSvgMarkup(faceSvg)
+      const { width, height } = STELLA_RIG_MANIFEST.viewBox
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${label}" data-character-shell="stella" data-hair="none">
+  <g data-character-layer="face-rig">${faceBody}</g>
+</svg>`
     }
     return renderStellaFaceFeaturesSvg(state, label)
   }
