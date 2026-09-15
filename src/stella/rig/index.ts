@@ -5,7 +5,9 @@ export {
   GENERATED_ASSET_CELL_SIZE,
   STELLA_GENERATED_ASSETS,
   STELLA_GENERATED_ASSET_SHEET,
+  generatedAssetImageStyle,
   generatedAssetLayerStyle,
+  generatedAssetTransformStyle,
   layerCssTransform,
   layerTransform,
   normalizeLayerPlacement,
@@ -36,7 +38,7 @@ export { createRigSequenceExport, rigCompositeLayerOrder, rigStateForExpressionS
 export { rigFrameForSequence, rigSequenceRenderer } from './sequence-renderer'
 export { STELLA_RIG_MANIFEST } from './stella-manifest'
 export type { AccessoryDefinition, AccessoryId, AccessoryPlacement } from './accessory'
-export type { GeneratedAssetId, GeneratedAssetLayerStyle, LayerPlacement } from './generated-assets'
+export type { GeneratedAssetId, GeneratedAssetImageStyle, GeneratedAssetLayerStyle, GeneratedAssetTransformStyle, LayerPlacement } from './generated-assets'
 export type { HairLayerPart, HairPlacement, ModularHairDefinition, ModularHairId } from './hair'
 export type { StellaCharacterRenderOptions } from './render-character'
 export type { RigCompositeLayer, RigSequenceExportBackground, RigSequenceExportFormat, RigSequenceExportOptions } from './sequence-export'
