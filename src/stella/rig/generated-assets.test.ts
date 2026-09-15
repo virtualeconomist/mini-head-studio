@@ -5,7 +5,8 @@ import { STELLA_EXPRESSION_PRESETS } from './expression-presets'
 import {
   STELLA_GENERATED_ASSETS,
   STELLA_GENERATED_ASSET_SHEET,
-  generatedAssetLayerStyle,
+  generatedAssetImageStyle,
+  generatedAssetTransformStyle,
   layerCssTransform
 } from './generated-assets'
 import { PLUSH_BOB_RASTER_SOURCE, modularHairDefinition } from './hair'
@@ -14,33 +15,43 @@ import { rigCompositeLayerOrder } from './sequence-export'
 import { rigFrameForSequence } from './sequence-renderer'
 
 describe('generated Stella character asset pack', () => {
-  it('resolves the generated base head as a real raster-sheet layer', () => {
+  it('resolves the generated base head as a real raster-sheet img layer', () => {
     expect(STELLA_GENERATED_ASSETS['base-head']).toMatchObject({ kind: 'base', cell: 0 })
-    expect(generatedAssetLayerStyle('base-head')).toMatchObject({
-      backgroundImage: `url("${STELLA_GENERATED_ASSET_SHEET}")`,
-      backgroundPosition: 'center 0%',
-      backgroundSize: '100% 600%'
+    expect(STELLA_GENERATED_ASSET_SHEET).toBe('/assets/stella/generated/asset-sheet.webp')
+    expect(generatedAssetImageStyle('base-head')).toMatchObject({
+      position: 'absolute',
+      left: '0',
+      top: '0%',
+      width: '100%',
+      height: '600%',
+      maxWidth: 'none'
     })
   })
 
-  it('resolves every generated hair selection to the expected raster asset', () => {
+  it('resolves every generated hair selection to the expected raster asset and img crop', () => {
     expect(modularHairDefinition('generated-classic-bob')?.generatedAsset).toBe('classic-bob')
     expect(modularHairDefinition('generated-star-buns')?.generatedAsset).toBe('star-buns')
     expect(modularHairDefinition('generated-orange-bob')?.generatedAsset).toBe('orange-bob')
     expect(modularHairDefinition('generated-cat-bob')?.generatedAsset).toBe('cat-bob')
-    expect(generatedAssetLayerStyle('classic-bob').backgroundPosition).toBe('center 80%')
+    expect(generatedAssetImageStyle('star-buns').top).toBe('-100%')
+    expect(generatedAssetImageStyle('orange-bob').top).toBe('-200%')
+    expect(generatedAssetImageStyle('cat-bob').top).toBe('-300%')
+    expect(generatedAssetImageStyle('classic-bob').top).toBe('-400%')
   })
 
-  it('resolves the White Cat Bandana as the accessory raster layer', () => {
+  it('resolves the White Cat Bandana as the accessory raster img layer', () => {
     expect(accessoryDefinition('cat-bandana')?.generatedAsset).toBe('cat-bandana')
-    expect(generatedAssetLayerStyle('cat-bandana').backgroundPosition).toBe('center 100%')
+    expect(generatedAssetImageStyle('cat-bandana').top).toBe('-500%')
   })
 
   it('keeps CSS placement transforms deterministic in 512-space', () => {
     const placement = { offsetX: 24, offsetY: -12, scale: 1.1, rotation: 6 }
-    expect(layerCssTransform(placement)).toBe('translate(4.6875%, -2.34375%) rotate(6deg) scale(1.1)')
-    expect(generatedAssetLayerStyle('star-buns', placement).transform)
-      .toBe('translate(4.6875%, -2.34375%) rotate(6deg) scale(1.1)')
+    const expected = 'translate(4.6875%, -2.34375%) rotate(6deg) scale(1.1)'
+    expect(layerCssTransform(placement)).toBe(expected)
+    expect(generatedAssetTransformStyle(placement)).toEqual({
+      transform: expected,
+      transformOrigin: '50% 50%'
+    })
   })
 
   it('keeps generated raster assets out of the compatibility SVG', () => {
