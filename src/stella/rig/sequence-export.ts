@@ -1,14 +1,9 @@
 import { gifIndexe, indexe, nouvellePalette, recense } from '@/ui/anime'
 import type { VideoExportFormat, VideoExportQuality } from '@/ui/video'
-import {
-  expressionSequenceDurationMs,
-  type ExpressionSequence
-} from '../expression-sequence'
-import {
-  PLUSH_BOB_RASTER_SOURCE,
-  type HairPlacement,
-  type ModularHairId
-} from './hair'
+import { expressionSequenceDurationMs, type ExpressionSequence } from '../expression-sequence'
+import { PLUSH_BOB_RASTER_SOURCE, modularHairDefinition, type HairPlacement, type ModularHairId } from './hair'
+import { STELLA_GENERATED_ASSET_SHEET } from './generated-assets'
+import { type AccessoryId, type AccessoryPlacement } from './accessory'
 import { rigFrameForSequence } from './sequence-renderer'
 import type { FaceRigState } from './types'
 
@@ -24,21 +19,16 @@ export type RigSequenceExportOptions = Readonly<{
   background: RigSequenceExportBackground
   hairId?: ModularHairId
   hairPlacement?: Partial<HairPlacement>
+  accessoryId?: AccessoryId
+  accessoryPlacement?: Partial<AccessoryPlacement>
   onProgress?: (progress: number) => void
 }>
 
-/** Backwards-compatible pure helper now delegated to the shared rig renderer. */
-export function rigStateForExpressionSequence(
-  sequence: ExpressionSequence,
-  elapsedMs: number
-): FaceRigState {
+export function rigStateForExpressionSequence(sequence: ExpressionSequence, elapsedMs: number): FaceRigState {
   return rigFrameForSequence(sequence, elapsedMs, { hairId: 'none' }).state
 }
 
-function studioBackdrop(
-  context: CanvasRenderingContext2D,
-  size: number
-) {
+function studioBackdrop(context: CanvasRenderingContext2D, size: number) {
   const gradient = context.createLinearGradient(0, 0, size, size)
   gradient.addColorStop(0, '#edf4f6')
   gradient.addColorStop(1, '#f5ece7')
@@ -64,21 +54,26 @@ function blobToDataUrl(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(new Error('Unable to inline modular hair source'))
+    reader.onerror = () => reject(new Error('Unable to inline modular character asset'))
     reader.readAsDataURL(blob)
   })
 }
 
-/**
- * SVGs loaded through an <img> are not guaranteed to fetch nested external
- * resources. Inline the raster shell once before frame encoding so exported
- * GIF/MP4/WebM frames use the exact same original Plush Bob pixels as preview.
- */
-async function resolveHairSourceForExport(hairId: ModularHairId) {
-  if (hairId === 'none') return undefined
-  const response = await fetch(PLUSH_BOB_RASTER_SOURCE)
-  if (!response.ok) throw new Error('Unable to load original Plush Bob source for export')
+async function inlineAsset(url: string, errorMessage: string) {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(errorMessage)
   return blobToDataUrl(await response.blob())
+}
+
+async function resolveSources(hairId: ModularHairId, accessoryId: AccessoryId) {
+  const definition = modularHairDefinition(hairId)
+  const needsLegacyHair = definition?.sourceKind === 'raster-shell'
+  const needsGeneratedSheet = definition?.sourceKind === 'generated-overlay' || hairId === 'none' || accessoryId !== 'none'
+  const [hairSource, assetSheetSource] = await Promise.all([
+    needsLegacyHair ? inlineAsset(PLUSH_BOB_RASTER_SOURCE, 'Unable to load legacy Plush Bob source for export') : Promise.resolve(undefined),
+    needsGeneratedSheet ? inlineAsset(STELLA_GENERATED_ASSET_SHEET, 'Unable to load generated character asset pack for export') : Promise.resolve(undefined)
+  ])
+  return { hairSource, assetSheetSource }
 }
 
 async function drawRigFrame(
@@ -86,18 +81,20 @@ async function drawRigFrame(
   context: CanvasRenderingContext2D,
   options: RigSequenceExportOptions,
   elapsedMs: number,
-  hairSource?: string
+  hairSource?: string,
+  assetSheetSource?: string
 ) {
   context.clearRect(0, 0, options.size, options.size)
   const opaqueVideo = options.format !== 'gif'
-  if (options.background === 'studio' || opaqueVideo) {
-    studioBackdrop(context, options.size)
-  }
+  if (options.background === 'studio' || opaqueVideo) studioBackdrop(context, options.size)
 
   const frame = rigFrameForSequence(options.sequence, elapsedMs, {
-    hairId: options.hairId ?? 'plush-bob',
+    hairId: options.hairId ?? 'generated-classic-bob',
     hairPlacement: options.hairPlacement,
-    hairSource
+    hairSource,
+    accessoryId: options.accessoryId ?? 'none',
+    accessoryPlacement: options.accessoryPlacement,
+    assetSheetSource
   })
   const { image, url } = await loadSvgImage(frame.svg)
   try {
@@ -108,26 +105,19 @@ async function drawRigFrame(
   return canvas
 }
 
-/**
- * Encodes the exact modular character timeline rather than swapping raster sprites.
- * The face remains parametric while the source-faithful raster hair shell is
- * composited through the same layered SVG renderer used by live preview.
- */
-export async function createRigSequenceExport(
-  options: RigSequenceExportOptions
-): Promise<Blob> {
+export async function createRigSequenceExport(options: RigSequenceExportOptions): Promise<Blob> {
   const totalDurationMs = expressionSequenceDurationMs(options.sequence)
   if (totalDurationMs <= 0) throw new Error('The rig sequence has no duration')
 
-  const hairId = options.hairId ?? 'plush-bob'
-  const hairSource = await resolveHairSourceForExport(hairId)
+  const hairId = options.hairId ?? 'generated-classic-bob'
+  const accessoryId = options.accessoryId ?? 'none'
+  const { hairSource, assetSheetSource } = await resolveSources(hairId, accessoryId)
   const frameCount = Math.max(2, Math.round((totalDurationMs / 1000) * options.fps))
   const canvas = document.createElement('canvas')
   canvas.width = options.size
   canvas.height = options.size
   const context = canvas.getContext('2d', { alpha: true })
   if (!context) throw new Error('Canvas is unavailable')
-
   const elapsedForFrame = (index: number) => (index / frameCount) * totalDurationMs
 
   if (options.format !== 'gif') {
@@ -137,7 +127,7 @@ export async function createRigSequenceExport(
       frameCount,
       options.fps,
       async (index) => {
-        await drawRigFrame(canvas, context, options, elapsedForFrame(index), hairSource)
+        await drawRigFrame(canvas, context, options, elapsedForFrame(index), hairSource, assetSheetSource)
       },
       options.format,
       options.quality,
@@ -147,7 +137,7 @@ export async function createRigSequenceExport(
 
   const frames: Uint8ClampedArray[] = []
   for (let index = 0; index < frameCount; index += 1) {
-    await drawRigFrame(canvas, context, options, elapsedForFrame(index), hairSource)
+    await drawRigFrame(canvas, context, options, elapsedForFrame(index), hairSource, assetSheetSource)
     frames.push(context.getImageData(0, 0, options.size, options.size).data)
     options.onProgress?.((index + 1) / (frameCount * 3))
     if (index % 3 === 2) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
@@ -167,13 +157,7 @@ export async function createRigSequenceExport(
     if (index % 4 === 3) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
   }
 
-  const bytes = gifIndexe(
-    palette,
-    indexed,
-    options.size,
-    options.size,
-    Math.round(1000 / options.fps)
-  )
+  const bytes = gifIndexe(palette, indexed, options.size, options.size, Math.round(1000 / options.fps))
   options.onProgress?.(1)
   return new Blob([bytes], { type: 'image/gif' })
 }

@@ -2,6 +2,7 @@ import type { SequenceRenderer, SequenceRendererFrame } from '../animation-mode'
 import { sampleExpressionSequence, type ExpressionSequence } from '../expression-sequence'
 import { STELLA_EXPRESSION_PRESETS } from './expression-presets'
 import { type HairPlacement, type ModularHairId } from './hair'
+import { type AccessoryId, type AccessoryPlacement } from './accessory'
 import { interpolateFaceRigState } from './interpolate'
 import { renderStellaCharacterSvg } from './render-character'
 import type { FaceRigState } from './types'
@@ -10,6 +11,9 @@ export type RigSequenceRenderOptions = Readonly<{
   hairId?: ModularHairId
   hairPlacement?: Partial<HairPlacement>
   hairSource?: string
+  accessoryId?: AccessoryId
+  accessoryPlacement?: Partial<AccessoryPlacement>
+  assetSheetSource?: string
 }>
 
 export type RigSequenceFrame = SequenceRendererFrame & Readonly<{
@@ -17,6 +21,7 @@ export type RigSequenceFrame = SequenceRendererFrame & Readonly<{
   state: FaceRigState
   svg: string
   hairId: ModularHairId
+  accessoryId: AccessoryId
 }>
 
 export function rigFrameForSequence(
@@ -28,12 +33,9 @@ export function rigFrameForSequence(
   const from = STELLA_EXPRESSION_PRESETS[sample.from]
   const state = !sample.inTransition || sample.from === sample.to
     ? from
-    : interpolateFaceRigState(
-      from,
-      STELLA_EXPRESSION_PRESETS[sample.to],
-      sample.easedProgress
-    )
-  const hairId = options.hairId ?? 'plush-bob'
+    : interpolateFaceRigState(from, STELLA_EXPRESSION_PRESETS[sample.to], sample.easedProgress)
+  const hairId = options.hairId ?? 'generated-classic-bob'
+  const accessoryId = options.accessoryId ?? 'none'
 
   return {
     mode: 'rig',
@@ -41,10 +43,14 @@ export function rigFrameForSequence(
     elapsedMs,
     state,
     hairId,
+    accessoryId,
     svg: renderStellaCharacterSvg(state, {
       hairId,
       hairPlacement: options.hairPlacement,
       hairSource: options.hairSource,
+      accessoryId,
+      accessoryPlacement: options.accessoryPlacement,
+      assetSheetSource: options.assetSheetSource,
       label: `Rig sequence ${sample.from} to ${sample.to}`
     })
   }
