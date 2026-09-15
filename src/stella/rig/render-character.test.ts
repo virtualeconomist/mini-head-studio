@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { STELLA_EXPRESSION_PRESETS } from './expression-presets'
-import { PLUSH_BOB_RASTER_SOURCE, renderStellaHairLayer } from './hair'
+import {
+  PLUSH_BOB_FACE_OPENING_ID,
+  PLUSH_BOB_RASTER_SOURCE,
+  renderStellaHairLayer
+} from './hair'
 import { renderStellaCharacterSvg } from './render-character'
 
 describe('modular Stella character shell', () => {
-  it('composes source raster back hair, face rig, then source raster fringe', () => {
+  it('composes source raster back hair, clipped face rig, then source raster fringe', () => {
     const svg = renderStellaCharacterSvg(STELLA_EXPRESSION_PRESETS.happy, { hairId: 'plush-bob' })
     const back = svg.indexOf('data-hair-layer="back"')
     const face = svg.indexOf('data-character-layer="face-rig"')
@@ -16,15 +20,17 @@ describe('modular Stella character shell', () => {
     expect(svg).toContain('data-hair="plush-bob"')
     expect(svg).toContain('data-hair-source="raster"')
     expect(svg).toContain(PLUSH_BOB_RASTER_SOURCE)
-    expect(svg).toContain('plush-bob-hair-alpha')
+    expect(svg).toContain('plush-bob-back-mask')
+    expect(svg).toContain(`clip-path="url(#${PLUSH_BOB_FACE_OPENING_ID})"`)
   })
 
-  it('can render the same face rig without hair', () => {
+  it('can render the same face rig without hair or face clipping', () => {
     const svg = renderStellaCharacterSvg(STELLA_EXPRESSION_PRESETS.love, { hairId: 'none' })
     expect(svg).toContain('data-hair="none"')
     expect(svg).not.toContain('data-hair-layer=')
     expect(svg).not.toContain(PLUSH_BOB_RASTER_SOURCE)
     expect(svg).toContain('data-character-layer="face-rig"')
+    expect(svg).not.toContain(`url(#${PLUSH_BOB_FACE_OPENING_ID})`)
   })
 
   it('keeps source hair markup independent from expression state', () => {
@@ -45,5 +51,13 @@ describe('modular Stella character shell', () => {
     })
     expect(svg).toContain(source)
     expect(svg).not.toContain(PLUSH_BOB_RASTER_SOURCE)
+  })
+
+  it('moves the face opening with hair placement', () => {
+    const svg = renderStellaCharacterSvg(STELLA_EXPRESSION_PRESETS.happy, {
+      hairId: 'plush-bob',
+      hairPlacement: { offsetX: 12, offsetY: -8, scale: 1.05, rotation: 2 }
+    })
+    expect(svg).toContain('translate(12 -8) translate(256 256) rotate(2) scale(1.05)')
   })
 })
